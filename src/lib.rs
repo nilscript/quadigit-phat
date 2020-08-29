@@ -164,11 +164,16 @@ mod tests {
 
     #[test]
     fn test_print() -> Result<Error> {
-        let mut phat = PHat::new(I2c::new(), 0u8);
-        phat.print("TEST".chars())?;
-        phat.print(" ".chars())?;
-        phat.print(once(' '))?;
-        phat.print(once(Char::from('*')))?;
+        let mut phat0 = PHat::new(I2c::new(), 0);
+        phat0.set_digit(Digit::DIGIT_0, 'T')?;
+        phat0.set_digit(Digit::DIGIT_1, 'E')?;
+        phat0.set_digit(Digit::DIGIT_2, 'S')?;
+        phat0.set_digit(Digit::DIGIT_3, 'T')?;
+        
+        let mut phat1 = PHat::new(I2c::new(), 0u8);
+        phat1.print("TEST".chars())?;
+
+        assert_eq!(phat0.buffer(), phat1.buffer());
 
         Ok(())
     }
