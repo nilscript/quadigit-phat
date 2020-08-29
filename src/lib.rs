@@ -173,7 +173,7 @@ mod tests {
         let mut phat1 = PHat::new(I2c::new(), 0u8);
         phat1.print("TEST".chars())?;
 
-        assert_eq!(phat0.buffer(), phat1.buffer());
+        assert_eq!(phat0.display_buffer(), phat1.display_buffer());
 
         Ok(())
     }
