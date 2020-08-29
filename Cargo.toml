@@ -1,0 +1,27 @@
+[package]
+authors = ["Nils Eriksson <nils.edvin.eriksson@gmail.com>"]
+edition = "2018"
+name = "quadigit-phat"
+version = "0.1.0"
+description = "High level driver for the Four Letter pHAT digital display"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+extend          = "0.1.2"
+num_enum        = "0.5.1"
+phf             = { version = "0.8.0", features = ["macros"] }
+embedded-hal    = "0.2"
+ht16k33         = { git = "https://github.com/sesar54/ht16k33", branch = "row_mask" }
+enum-iterator   = "0.6.0"
+
+[dependencies.byteorder]
+default-features = false
+version = "1"
+
+[dev-dependencies]
+failure            = "0.1"
+embedded-hal-mock  = "0.7"
+version-sync       = "0.9"
