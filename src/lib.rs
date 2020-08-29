@@ -12,8 +12,7 @@ pub use crate::{char::Char, digit::Digit, error::Error};
 
 use ::embedded_hal::blocking::i2c::{Write, WriteRead};
 use ::extend::ext;
-use ::ht16k33::DisplayData;
-use ::ht16k33::HT16K33;
+pub use ::ht16k33::*; // TODO Replace with proper prelude
 
 pub type PHat<I2C> = HT16K33<I2C>;
 pub type Result<E> = core::result::Result<(), E>;
