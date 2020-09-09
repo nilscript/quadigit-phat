@@ -4,10 +4,12 @@
 #![allow(dead_code)]
 
 pub mod bitmap;
+pub mod prelude;
 mod char;
 mod digit;
 mod error;
 
+use bitmap::*;
 pub use crate::{char::Char, digit::Digit, error::Error};
 
 use ::embedded_hal::blocking::i2c::{Write, WriteRead};
@@ -124,10 +126,9 @@ where
     /// ```
     fn print_offset<T, I>(&mut self, offset: Digit, iter: I) -> Result<E>
     where
-        T: Into<Char>,
-        I: IntoIterator<Item = T>,
+        T: Into<Bitmap>,
     {
-        iter.into_iter()
+        &iter.into().bits
             .flat_map(T::into)
             .zip(offset)
             .try_for_each(|(c, d)| self.set_row_mask(d, c))
@@ -149,8 +150,7 @@ where
     /// ```
     fn print<T, I>(&mut self, iter: I) -> Result<E>
     where
-        T: Into<Char>,
-        I: IntoIterator<Item = T>,
+        T: Into<Bitmap>,
     {
         self.print_offset(Digit::default(), iter)
     }

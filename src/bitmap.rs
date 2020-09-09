@@ -20,7 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-use phf::phf_map;
+use ::phf::phf_map;
+use ::core::ops::Range;
+use ::ht16k33::DisplayData as Data;
+
 
 /// TODO Insert GOOD DOCUMENTATION here
 pub static ASCII: phf::Map<char, [u8; 2]> = phf_map! {
@@ -120,3 +123,32 @@ pub static ASCII: phf::Map<char, [u8; 2]> = phf_map! {
     '}' =>  [0b1000_1001, 0b0010_0100],
     '~' =>  [0b0010_0000, 0b0000_0101],
 };
+
+#[derive(Debug)]
+pub struct Bitmap {
+    pub bits: [Option<Data>; 8],
+}
+
+impl Default for Bitmap {
+    fn default() -> Self {
+        Bitmap {
+            bits: [Some(Data::default()); 8],
+        }
+    }
+}
+
+impl Bitmap {
+    fn update(self, range: Range<usize>) -> Bitmap {
+        self // TODO
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slice() {
+
+    }
+}
