@@ -128,7 +128,7 @@ where
     where
         T: Into<Bitmap>,
     {
-        &iter.into().bits
+        &iter.into().into().bits
             .flat_map(T::into)
             .zip(offset)
             .try_for_each(|(c, d)| self.set_row_mask(d, c))
