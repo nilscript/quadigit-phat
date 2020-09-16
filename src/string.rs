@@ -32,14 +32,18 @@ impl IndexMut<usize> for String {
     }
 }
 
-// Singles
-impl<T> From<T> for String
-where
-    T: Into<Char>,
-{
-    fn from(c: T) -> Self {
+impl From<char> for String {
+    fn from(c: char) -> Self {
         let mut string = Self::default();
-        string[0] = c.into();
+        string[0] = Char::from(c);
+        string
+    }
+}
+
+impl From<Char> for String {
+    fn from(c: Char) -> Self {
+        let mut string = Self::default();
+        string[0] = c;
         string
     }
 }

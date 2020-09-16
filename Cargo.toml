@@ -10,7 +10,7 @@ default = ["std"]
 std = []
 
 [dependencies]
-extend          = "0.1.2"
+extend          = "0.3.0"
 num_enum        = "0.5.1"
 phf             = { version = "0.8.0", features = ["macros"] }
 embedded-hal    = "0.2"
