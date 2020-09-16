@@ -1,17 +1,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(array_value_iter)]
+#![feature(array_value_iter)] // Used in Digit::IntoIter
+#![feature(generators, generator_trait)]
 //#![warn(missing_docs)]
 #![allow(dead_code)]
 
-pub mod bitmap;
-pub mod prelude;
 mod char;
+mod constant;
 mod digit;
 mod error;
+pub mod prelude;
+mod string;
 
-use bitmap::*;
-pub use crate::{char::Char, digit::Digit, error::Error};
-
+pub use crate::char::Char;
+pub use crate::constant::*;
+pub use crate::digit::Digit;
+pub use crate::error::Error;
+pub use crate::string::String;
 use ::embedded_hal::blocking::i2c::{Write, WriteRead};
 use ::extend::ext;
 pub use ::ht16k33::*; // TODO Replace with proper prelude
@@ -38,25 +42,6 @@ where
     ///
     /// # Arguments
     /// * `digit`   - Digit to update
-    /// * `c`       - Char to set buffer with
-    ///
-    /// # Examples
-    /// ```
-    /// # use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
-    /// # use ht16k33::DisplayData;
-    /// # use quadigit_phat::*;
-    ///
-    /// # let mut phat = PHat::new(I2c::new(), 0u8);
-    /// # phat.initialize();
-    /// phat.update_digit(Digit::DIGIT_2, Char::from([0, 0b0000_0111]));
-    ///
-    /// assert_eq!(phat.display_buffer()[4..6], [DisplayData::from_byte(0), DisplayData::from_byte(0b0000_0111)]);
-    /// ```
- 
-    /// Update digit buffer
-    ///
-    /// # Arguments
-    /// * `digit`   - Digit to update
     /// * `raw`     - Raw pair of bytes to set buffer with
     ///
     /// # Examples
@@ -69,18 +54,16 @@ where
     /// # phat.initialize();
     /// phat.update_digit(Digit::DIGIT_0, [0, 0b1111_1111]);
     ///
-    /// assert_eq!(phat.display_buffer()[0..2], [DisplayData::from_byte(0), DisplayData::from_byte(0b1111_1111)]);
+    /// assert_eq!(phat.buffer[0..2], [0, 0b1111_1111]);
     /// ```
-    fn update_digit<T>(&mut self, digit: Digit, t: T)
+    fn update_digit<C>(&mut self, digit: Digit, c: C)
     where
-        T: Into<Char>,
+        C: Into<Char>,
     {
-        let raw: [u8; 2] = t.into().into();
-        raw.iter()
-            .copied()
-            .map(DisplayData::from_byte)
+        c.into()
+            .into_iter()
             .zip(digit)
-            .for_each(|(c, d)| self.update_row_mask(d, c));
+            .for_each(|(c, d)| self.buffer[d] = c);
     }
 
     /// Write to digit
@@ -99,39 +82,30 @@ where
     /// # let mut phat = PHat::new(I2c::new(), 0u8);
     /// # phat.initialize();
     /// phat.set_digit(Digit::DIGIT_3, Char::from('*'));
-    /// assert_eq!(phat.display_buffer()[6..8], [DisplayData::from_byte(0b0011_1111), DisplayData::from_byte(0b1100_0000)]);
+    /// assert_eq!(phat.buffer[6..8], [0b1100_0000, 0b0011_1111]);
     ///
     /// phat.set_digit(Digit::DIGIT_3, [0b0011_1111, 0b1100_0000]);
-    /// assert_eq!(phat.display_buffer()[6..8], [DisplayData::from_byte(0b0011_1111), DisplayData::from_byte(0b1100_0000)]);
+    /// assert_eq!(phat.buffer[6..8], [0b0011_1111, 0b1100_0000]);
     ///
     /// phat.set_digit(Digit::DIGIT_3, '*');
-    /// assert_eq!(phat.display_buffer()[6..8], [DisplayData::from_byte(0b0011_1111), DisplayData::from_byte(0b1100_0000)]);
+    /// assert_eq!(phat.buffer[6..8], [0b1100_0000, 0b0011_1111]);
     /// ```
     fn set_digit<T>(&mut self, digit: Digit, t: T) -> Result<E>
     where
         T: Into<Char>,
     {
-        let raw: [u8; 2] = t.into().into();
-        raw.iter()
-            .copied()
-            .map(DisplayData::from_byte)
-            .zip(digit)
-            .try_for_each(|(c, d)| self.set_row_mask(d, c))
+        self.update_digit(digit, t);
+        self.write_display_buffer()
     }
 
-    /// Print a 
-    /// 
-    /// ```
-    ///
-    /// ```
-    fn print_offset<T, I>(&mut self, offset: Digit, iter: I) -> Result<E>
+    fn print_offset<T>(&mut self, offset: Digit, string: T) -> Result<E>
     where
-        T: Into<Bitmap>,
+        T: Into<String>,
     {
-        &iter.into().into().bits
-            .flat_map(T::into)
-            .zip(offset)
-            .try_for_each(|(c, d)| self.set_row_mask(d, c))
+        (offset.to_addr()[0]..STRING_SIZE)
+            // Flattens string to iterator of chars, chars to iterator of bytes
+            .zip(string.into().into_iter().flatten())
+            .try_for_each(|(d, c)| self.set_row_mask(d, c))
     }
 
     /// Print a maximum of 4 values to respective digit on display
@@ -146,30 +120,29 @@ where
     ///
     /// # let mut phat = PHat::new(I2c::new(), 0u8);
     /// # phat.initialize();
-    /// phat.print("TEST".chars());
+    /// phat.print("89AB");
     /// ```
-    fn print<T, I>(&mut self, iter: I) -> Result<E>
+    fn print<T>(&mut self, string: T) -> Result<E>
     where
-        T: Into<Bitmap>,
+        T: Into<String>,
     {
-        self.print_offset(Digit::default(), iter)
+        self.print_offset(Digit::default(), string)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::iter::once;
     use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
 
     #[test]
     fn test_print() -> Result<Error> {
         let mut phat = PHat::new(I2c::new(), 0u8);
-        phat.print("TEST".chars())?;
-        phat.print(" ".chars())?;
-        phat.print(once(' '))?;
-        phat.print(once(Char::from('*')))?;
-
+        phat.print("TEST")?;
+        phat.print("TESTING")?;
+        phat.print(" ")?;
+        phat.print(' ')?;
+        phat.print(Char::from('*'))?;
         Ok(())
     }
 }

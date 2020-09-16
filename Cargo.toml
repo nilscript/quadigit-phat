@@ -14,7 +14,7 @@ extend          = "0.1.2"
 num_enum        = "0.5.1"
 phf             = { version = "0.8.0", features = ["macros"] }
 embedded-hal    = "0.2"
-ht16k33         = { git = "https://github.com/sesar54/ht16k33", branch = "row_mask" }
+ht16k33         = { git = "https://github.com/sesar54/ht16k33", rev = "5da948f" }
 enum-iterator   = "0.6.0"
 
 [dependencies.byteorder]

@@ -1,6 +1,5 @@
-use ::core::{array, convert::TryFrom, fmt};
+use ::core::{array, fmt};
 use ::enum_iterator::IntoEnumIterator;
-use ::ht16k33::DisplayDataAddress as DataAddr;
 use ::num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[allow(non_camel_case_types)]
@@ -38,7 +37,7 @@ impl fmt::Display for Digit {
 }
 
 impl IntoIterator for Digit {
-    type Item = DataAddr;
+    type Item = usize;
     type IntoIter = array::IntoIter<Self::Item, 2>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -47,23 +46,10 @@ impl IntoIterator for Digit {
 }
 
 impl Digit {
-    pub fn to_display_data_addresses(&self) -> [DataAddr; 2] {
-        let row = [*self as u8 * 2, *self as u8 * 2 + 1];
-
-        match (DataAddr::try_from(row[0]), DataAddr::try_from(row[1])) {
-            (Ok(row0), Ok(row1)) => [row0, row1],
-            _ => unreachable!(),
-            // The greatest address for DataAddr is 0x07,
-            // which is within limits for the last digit:
-            // DIGIT_3 = 0x03; 3 * 2 + 1 == 7
-        }
-    }
-
     /// Creates 2 Display Data Addresses
-    ///
     /// These addresses are used as backends for the Digit interface.
-    pub fn to_addr(&self) -> [DataAddr; 2] {
-        self.to_display_data_addresses()
+    pub fn to_addr(&self) -> [usize; 2] {
+        [*self as usize * 2, *self as usize * 2 + 1]
     }
 }
 
@@ -74,10 +60,8 @@ mod tests {
 
     #[test]
     fn test_addresses() {
-        let rows = (0..8)
-            .map(|n| DataAddr::try_from(n).unwrap())
-            .collect::<Vec<DataAddr>>();
-        let digit = Digit::into_enum_iter().flatten().collect::<Vec<DataAddr>>();
+        let rows = (0..8).collect::<Vec<_>>();
+        let digit = Digit::into_enum_iter().flatten().collect::<Vec<_>>();
 
         assert_eq!(rows, digit);
     }
