@@ -39,6 +39,22 @@ impl<I2C, E> PHat<I2C>
 where
     I2C: Write<Error = E> + WriteRead<Error = E>,
 {
+
+    fn update_decimal(&mut self, digit: Digit, decimal: bool) {
+        let addr = digit.to_addr()[1];
+        let decimal_mask = 0b0100_0000;
+
+        match decimal {
+            true => self.buffer[addr] |= decimal_mask,
+            false => self.buffer[addr] &= !decimal_mask
+        }
+    }
+
+    fn set_decimal(&mut self, digit: Digit, decimal: bool)  -> Result<E> {
+        self.update_decimal(digit, decimal);
+        self.set_row_mask(digit.to_addr()[1], self.buffer[digit.to_addr()[1]])
+    }
+
     /// Update digit buffer
     ///
     /// # Arguments
