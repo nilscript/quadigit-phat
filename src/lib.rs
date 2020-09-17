@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(array_value_iter)] // Used in Digit::IntoIter
 #![feature(generators, generator_trait)]
+#![feature(type_ascription)]
 //#![warn(missing_docs)]
 #![allow(dead_code)]
 
@@ -102,7 +103,7 @@ where
     where
         T: Into<String>,
     {
-        (offset.to_addr()[0]..STRING_SIZE)
+        (offset.to_addr()[0]..BITMAP_SIZE)
             // Flattens string to iterator of chars, chars to iterator of bytes
             .zip(string.into().into_iter().flatten())
             .try_for_each(|(d, c)| self.set_row_mask(d, c))
@@ -135,14 +136,26 @@ mod tests {
     use super::*;
     use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
 
+    const TEST: [u8; 8] = [0b0000_0001, 0b0001_0010, 0b1111_1001, 0b0000_0000, 0b1110_1101, 0b0000_0000, 0b0000_0001, 0b0001_0010];
+
     #[test]
     fn test_print() -> Result<Error> {
         let mut phat = PHat::new(I2c::new(), 0u8);
         phat.print("TEST")?;
+        assert_eq!(phat.buffer[..8], TEST);
+
         phat.print("TESTING")?;
+        assert_eq!(phat.buffer[..8], TEST);
+
         phat.print(" ")?;
+        assert_eq!(phat.buffer[0], 0b0000_0000);
+        
         phat.print(' ')?;
+        assert_eq!(phat.buffer[0], 0b0000_0000);
+
         phat.print(Char::from('*'))?;
+        assert_eq!(phat.buffer[..2], [0b1100_0000, 0b0011_1111]);
+
         Ok(())
     }
 }
