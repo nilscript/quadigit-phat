@@ -5,6 +5,7 @@ use ::core::convert::{From, Into};
 use ::core::iter::FromIterator;
 use ::core::ops::Index;
 use ::core::ops::IndexMut;
+use ::core::str::Chars;
 
 /// A constant sized collection of chars
 ///
@@ -44,6 +45,13 @@ where
     }
 }
 
+
+impl From<Chars<'_>> for String {
+        fn from(chars: Chars<'_>) -> Self {
+           Self::from_iter(chars)
+    }
+}
+
 // Slices
 impl<T> From<&[T]> for String
 where
@@ -58,21 +66,21 @@ where
     }
 }
 
-// String
-/// Internally calls `.chars()`
+// &str to Chars
 impl From<&str> for String {
-    fn from(string: &str) -> Self {
-        Self::from_iter(string.chars())
+    fn from(s: &str) -> Self {
+        Self::from_iter(s.chars())
     }
 }
 
-// char iter. Maps and calls from_iter<Char>
+// Chars iter. Maps and calls from_iter<Char>
 impl FromIterator<char> for String {
     fn from_iter<I: IntoIterator<Item = char>>(chars: I) -> Self {
         Self::from_iter(chars.into_iter().map(Char::from))
     }
 }
 
+// Performs the conversion
 impl FromIterator<Char> for String {
     fn from_iter<I: IntoIterator<Item = Char>>(iter: I) -> Self {
         let mut string = Self::default();
