@@ -9,20 +9,19 @@ mod char;
 mod constant;
 mod digit;
 mod error;
-pub mod prelude;
 mod string;
 
-pub use crate::char::Char;
+pub use crate::char::{Char, *};
 pub use crate::constant::*;
 pub use crate::digit::Digit;
 pub use crate::error::Error;
 pub use crate::string::String;
 use ::embedded_hal::blocking::i2c::{Write, WriteRead};
 use ::extend::ext;
-pub use ::ht16k33::*; // TODO Replace with proper prelude
+pub use ::ht16k33::*;
 
 pub type PHat<I2C> = HT16K33<I2C>;
-pub type Result<E> = core::result::Result<(), E>;
+type Result<E> = core::result::Result<(), E>;
 
 /// Set an fourletter-phat driver
 ///

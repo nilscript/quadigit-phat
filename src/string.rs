@@ -1,5 +1,5 @@
 use crate::char::Char;
-use crate::constant::{BITMAP_SIZE, STRING_SIZE};
+use crate::constant::STRING_SIZE;
 use ::core::array;
 use ::core::convert::{From, Into};
 use ::core::iter::FromIterator;
