@@ -25,3 +25,11 @@ version = "1"
 failure            = "0.1"
 embedded-hal-mock  = "0.7"
 version-sync       = "0.9"
+
+max7219 = "0.3.0"                                   # Driver
+rppal = { version = "0.11.3", features = ["hal"] }  # Driver
+chrono = "0.4.13"                                   # Replacement for std::time
+ascii = "1.0.0"                                     # String to ascii to byte array
+docopt = "1"                                        # Arguments
+serde = { version = "1", features = ["derive"] }
+ctrlc = "3.1.7"
