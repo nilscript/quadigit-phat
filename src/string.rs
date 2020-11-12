@@ -5,6 +5,8 @@ use ::core::convert::{From, Into};
 use ::core::iter::FromIterator;
 use ::core::ops::Index;
 use ::core::ops::IndexMut;
+use ::core::str::Chars;
+use ::ht16k33::COMMONS_SIZE;
 
 /// A constant sized collection of chars
 ///
@@ -48,6 +50,12 @@ impl From<Char> for String {
     }
 }
 
+impl From<Chars<'_>> for String {
+    fn from(chars: Chars<'_>) -> Self {
+        Self::from_iter(chars)
+    }
+}
+
 // Slices
 impl<T> From<&[T]> for String
 where
@@ -62,21 +70,21 @@ where
     }
 }
 
-// String
-/// Internally calls `.chars()`
+// &str to Chars
 impl From<&str> for String {
-    fn from(string: &str) -> Self {
-        Self::from_iter(string.chars())
+    fn from(s: &str) -> Self {
+        Self::from_iter(s.chars())
     }
 }
 
-// char iter. Maps and calls from_iter<Char>
+// Chars iter. Maps and calls from_iter<Char>
 impl FromIterator<char> for String {
     fn from_iter<I: IntoIterator<Item = char>>(chars: I) -> Self {
         Self::from_iter(chars.into_iter().map(Char::from))
     }
 }
 
+// Performs the conversion
 impl FromIterator<Char> for String {
     fn from_iter<I: IntoIterator<Item = Char>>(iter: I) -> Self {
         let mut string = Self::default();
@@ -86,6 +94,17 @@ impl FromIterator<Char> for String {
             .for_each(|(c, i)| string[i] = c);
 
         string
+    }
+}
+
+impl Into<[u8; COMMONS_SIZE]> for String {
+    fn into(self) -> [u8; COMMONS_SIZE] {
+        let mut array = [0; COMMONS_SIZE];
+        self.into_iter()
+            .flatten()
+            .enumerate()
+            .for_each(|(i, c)| array[i] = c);
+        array
     }
 }
 
@@ -99,22 +118,20 @@ impl IntoIterator for String {
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_from() {
+        let TEST = [0b0000_0001,0b0001_0010,0b1111_1001,0b0000_0000,0b1110_1101,0b0000_0000,0b0000_0001,0b0001_0010];
+
         // Only the first 4 characters fits
-        let test = String::from("Testing string");
-
         assert_eq!(
-            test,
-            String::from(&['T', 'e', 's', 't', 'i', 'n', 'g', ' ', 's', 'l', 'i', 'c', 'e'][..])
+            String::from(&['T', 'E', 'S', 'T', 'I', 'N', 'G', ' ', 'S', 'L', 'I', 'C', 'E'][..]),
+            String::from(&['T', 'E', 'S', 'T'][..])
         );
-        assert_eq!(test[0], String::from('T')[0]);
-        assert_eq!(test[0], String::from(Char::from('T'))[0]);
-        assert_eq!(test, String::from_iter("Testing ".chars()));
-
-        println!("{:?}", test);
+        assert_eq!(String::from('T')[0], Char::from('T'));
+        assert_eq!((String::from("TEST").into(): [u8; COMMONS_SIZE]), TEST)
     }
 }

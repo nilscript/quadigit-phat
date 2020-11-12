@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+use crate::constant::CHAR_SIZE;
 use crate::error::Error;
 use ::core::array;
 use ::core::convert::{From, Into};
@@ -126,7 +127,7 @@ pub static ASCII: phf::Map<char, [u8; 2]> = phf_map! {
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Char([u8; 2]);
+pub struct Char([u8; CHAR_SIZE]);
 
 impl Default for Char {
     fn default() -> Char {
@@ -142,8 +143,8 @@ impl Index<usize> for Char {
     }
 }
 
-impl From<[u8; 2]> for Char {
-    fn from(bits: [u8; 2]) -> Self {
+impl From<[u8; CHAR_SIZE]> for Char {
+    fn from(bits: [u8; CHAR_SIZE]) -> Self {
         Char(bits)
     }
 }
@@ -157,7 +158,7 @@ impl From<char> for Char {
 }
 
 impl Into<[u8; 2]> for Char {
-    fn into(self) -> [u8; 2] {
+    fn into(self) -> [u8; CHAR_SIZE] {
         [self[0], self[1]]
     }
 }
