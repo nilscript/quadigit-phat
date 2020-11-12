@@ -1,7 +1,7 @@
 use chrono::Local;
 use ctrlc;
 use docopt::Docopt;
-use quadigit_phat::{Digit, Dimming, Display, PHat, PHatExt};
+use quadigit_phat::{Digit, Dimming, Display, PHat, PHatI2CExt};
 use rppal::i2c::{Error, I2c};
 use serde::Deserialize;
 use std::sync::atomic::{AtomicBool, Ordering};
