@@ -1,31 +1,34 @@
 [package]
 authors = ["Nils Eriksson <nils.edvin.eriksson@gmail.com>"]
 edition = "2018"
-name = "quadigit-phat"
-version = "0.1.0"
+name = "quadigit_phat"
+license-file = "LICENSE"
+version = "0.0.0"
 description = "High level driver for the Four Letter pHAT digital display"
 
 [features]
-default = ["std"]
+default = ["std"] # As of writing this, only Error implements std::error::Error
 std = []
+
+[lib]
+name = "quadigit_phat"
+path = "src/lib.rs"
+
+[[bin]]
+name = "clock"
+path = "src/bin/clock.rs"
 
 [dependencies]
 extend          = "0.3.0"
 num_enum        = "0.5.1"
 phf             = { version = "0.8.0", features = ["macros"] }
 embedded-hal    = "0.2"
-ht16k33         = { git = "https://github.com/sesar54/ht16k33", rev = "5da948f" }
+embedded-hal-mock = "0.7.2"
+ht16k33-diet    = { git = "https://github.com/sesar54/ht16k33-diet" }
 enum-iterator   = "0.6.0"
+bounded-integer = "0.2.3"
 
-[dependencies.byteorder]
-default-features = false
-version = "1"
-
-[dev-dependencies]
-failure            = "0.1"
-embedded-hal-mock  = "0.7"
-version-sync       = "0.9"
-
+# Bin clock dependencies
 max7219 = "0.3.0"                                   # Driver
 rppal = { version = "0.11.3", features = ["hal"] }  # Driver
 chrono = "0.4.13"                                   # Replacement for std::time
@@ -33,3 +36,8 @@ ascii = "1.0.0"                                     # String to ascii to byte ar
 docopt = "1"                                        # Arguments
 serde = { version = "1", features = ["derive"] }
 ctrlc = "3.1.7"
+
+[dev-dependencies]
+failure            = "0.1"
+embedded-hal-mock  = "0.7"
+version-sync       = "0.9"

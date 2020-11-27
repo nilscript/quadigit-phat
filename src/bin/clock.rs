@@ -1,7 +1,6 @@
 use chrono::Local;
-use ctrlc;
 use docopt::Docopt;
-use quadigit_phat::{Digit, Dimming, Display, PHat, PHatI2CExt};
+use quadigit_phat::*;
 use rppal::i2c::{Error, I2c};
 use serde::Deserialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -34,13 +33,11 @@ fn main() -> Result<(), Error> {
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
-    eprintln!("{:?}", args);
 
     eprintln!("Setting up display...");
     let mut phat = PHat::new(I2c::new()?, 112u8);
-    phat.initialize()?;
-    phat.set_dimming(Dimming::from_u8(args.flag_dimming).unwrap())?;
-    phat.set_display(Display::ON)?;
+    phat.init()?;
+    phat.write_dimming(Dimming::new(args.flag_dimming).unwrap())?;
 
     eprintln!("Setting up termination handler...");
     let running = Arc::new(AtomicBool::new(true));
@@ -54,29 +51,28 @@ fn main() -> Result<(), Error> {
     eprintln!("Started clock");
     while running.load(Ordering::SeqCst) {
         let time = Local::now();
+        let ascii_now = time.format(&args.flag_format).to_string();
 
-        // Ascii-string representing now
-        let now = time.format(&args.flag_format).to_string();
-
-        phat.print(&*now)?;
+        phat.set_text(ascii_now.chars());
         
         // Every second toggle the middle decimal
         if !args.flag_no_dot {
-            phat.set_decimal(Digit::DIGIT_1, time.timestamp() & 1 == 0)?;
+            phat.set_dot(Digit::P1, time.timestamp() & 1 == 0);
         }
+
+        phat.write_buffer()?;
 
         thread::sleep(Duration::from_millis(args.flag_period));
     }
     eprintln!("Stopped clock");
 
-
     if !args.flag_no_teardown {
         eprintln!("Tearing down display...");
-        phat.clear_display_buffer();
-        phat.write_display_buffer()?;
+        phat.clear_buffer();
+        phat.write_buffer()?;
 
-        phat.set_display(Display::OFF)?;
-        //    phat.set_oscillator(Oscillator::OFF)
+        phat.write_display(Display::Off)?;
+        phat.set_oscillator(Oscillator::OFF)
     }
 
     Ok(())

@@ -1,176 +1,123 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(array_value_iter)] // Used in Digit::IntoIter
-#![feature(generators, generator_trait)]
-#![feature(type_ascription)]
-//#![warn(missing_docs)]
-#![allow(dead_code)]
+#![allow(clippy::manual_range_contains)]
+#![feature(step_trait)]
+#![feature(step_trait_ext)]
 
-mod char;
-mod constant;
-mod digit;
-mod error;
-mod string;
+pub mod font;
 
-pub use crate::char::{Char, *};
-pub use crate::constant::*;
-pub use crate::digit::Digit;
-pub use crate::error::Error;
-pub use crate::string::String;
-use ::embedded_hal::blocking::i2c::{Write, WriteRead};
-use ::extend::ext;
-pub use ::ht16k33::*;
+use crate::font::ASCII;
+use bounded_integer::bounded_integer;
+use core::convert::TryFrom;
+use core::str::Chars;
+use core::{array, iter::Step};
+use embedded_hal::blocking::i2c::{Write, WriteRead};
+use extend::ext;
+pub use ht16k33_diet::*;
 
-pub type PHat<I2C> = HT16K33<I2C>;
-type Result<E> = core::result::Result<(), E>;
+pub const CHAR_SIZE: usize = 2;
 
-/// Set an fourletter-phat driver
-///
-/// # Example:
-/// ```
-/// # use ht16k33::i2c_mock::I2cMock as I2c;
-/// # use quadigit_phat::PHat;
-///
-/// let phat = PHat::new(I2c::new(), 0u8);
-///
-/// ```
-#[ext(pub)]
-impl<I2C, E> PHat<I2C>
-where
-    I2C: Write<Error = E> + WriteRead<Error = E>,
-{
+bounded_integer! {
+/// Each digit addresses 2 buffer bytes who collectivly form a set of leds, 
+/// used for displaying a character.
+#[repr(u8)]
+pub enum Digit { 0..4 }
+}
 
-    fn update_decimal(&mut self, digit: Digit, decimal: bool) {
-        let addr = digit.to_addr()[1];
-        let decimal_mask = 0b0100_0000;
-
-        match decimal {
-            true => self.buffer[addr] |= decimal_mask,
-            false => self.buffer[addr] &= !decimal_mask
-        }
-    }
-
-    fn set_decimal(&mut self, digit: Digit, decimal: bool)  -> Result<E> {
-        self.update_decimal(digit, decimal);
-        self.set_row_mask(digit.to_addr()[1], self.buffer[digit.to_addr()[1]])
-    }
-
-    /// Update digit buffer
-    ///
-    /// # Arguments
-    /// * `digit`   - Digit to update
-    /// * `raw`     - Raw pair of bytes to set buffer with
-    ///
-    /// # Examples
-    /// ```
-    /// # use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
-    /// # use ht16k33::DisplayData;
-    /// # use quadigit_phat::*;
-    ///
-    /// # let mut phat = PHat::new(I2c::new(), 0u8);
-    /// # phat.initialize();
-    /// phat.update_digit(Digit::DIGIT_0, [0, 0b1111_1111]);
-    ///
-    /// assert_eq!(phat.buffer[0..2], [0, 0b1111_1111]);
-    /// ```
-    fn update_digit<C>(&mut self, digit: Digit, c: C)
-    where
-        C: Into<Char>,
-    {
-        c.into()
-            .into_iter()
-            .zip(digit)
-            .for_each(|(c, d)| self.buffer[d] = c);
-    }
-
-    /// Write to digit
-    ///
-    /// # Arguments
-    /// * `digit`   - Digit to write to
-    /// * `c`       - Char to write with
-    ///
-    /// # Examples
-    /// ```
-    /// # use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
-    /// # use ht16k33::DisplayData;
-    /// # use quadigit_phat::*;
-    /// # use core::convert::TryFrom;
-    ///
-    /// # let mut phat = PHat::new(I2c::new(), 0u8);
-    /// # phat.initialize();
-    /// phat.set_digit(Digit::DIGIT_3, Char::from('*'));
-    /// assert_eq!(phat.buffer[6..8], [0b1100_0000, 0b0011_1111]);
-    ///
-    /// phat.set_digit(Digit::DIGIT_3, [0b0011_1111, 0b1100_0000]);
-    /// assert_eq!(phat.buffer[6..8], [0b0011_1111, 0b1100_0000]);
-    ///
-    /// phat.set_digit(Digit::DIGIT_3, '*');
-    /// assert_eq!(phat.buffer[6..8], [0b1100_0000, 0b0011_1111]);
-    /// ```
-    fn set_digit<T>(&mut self, digit: Digit, t: T) -> Result<E>
-    where
-        T: Into<Char>,
-    {
-        self.update_digit(digit, t);
-        self.write_display_buffer()
-    }
-
-    fn print_offset<T>(&mut self, offset: Digit, string: T) -> Result<E>
-    where
-        T: Into<String>,
-    {
-        (offset.to_addr()[0]..BITMAP_SIZE)
-            // Flattens string to iterator of chars, chars to iterator of bytes
-            .zip(string.into().into_iter().flatten())
-            .try_for_each(|(d, c)| self.set_row_mask(d, c))
-    }
-
-    /// Print a maximum of 4 values to respective digit on display
-    ///
-    /// Values not fitting on display will be ignored
-    ///
-    /// ```
-    /// # use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
-    /// # use ht16k33::DisplayData;
-    /// # use quadigit_phat::*;
-    /// # use core::convert::TryFrom;
-    ///
-    /// # let mut phat = PHat::new(I2c::new(), 0u8);
-    /// # phat.initialize();
-    /// phat.print("89AB");
-    /// ```
-    fn print<T>(&mut self, string: T) -> Result<E>
-    where
-        T: Into<String>,
-    {
-        self.print_offset(Digit::default(), string)
+impl Digit {
+    /// Creates 2 Display Data Addresses
+    /// These addresses are used as backends for the Digit interface.
+    pub fn to_addr(&self) -> [usize; CHAR_SIZE] {
+        [*self as usize * 2, *self as usize * 2 + 1]
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ht16k33::i2c_mock::{I2cMock as I2c, I2cMockError as Error};
+impl IntoIterator for Digit {
+    type Item = usize;
+    type IntoIter = array::IntoIter<Self::Item, CHAR_SIZE>;
 
-    const TEST: [u8; 8] = [0b0000_0001, 0b0001_0010, 0b1111_1001, 0b0000_0000, 0b1110_1101, 0b0000_0000, 0b0000_0001, 0b0001_0010];
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter::new(self.to_addr())
+    }
+}
 
-    #[test]
-    fn test_print() -> Result<Error> {
-        let mut phat = PHat::new(I2c::new(), 0u8);
-        phat.print("TEST")?;
-        assert_eq!(phat.buffer[..8], TEST);
+/// Range notation wont work without step implementation
+unsafe impl Step for Digit {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        Some((*end - *start) as usize)
+    }
 
-        phat.print("TESTING")?;
-        assert_eq!(phat.buffer[..8], TEST);
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        start.checked_add(u8::try_from(count).ok()?)
+    }
 
-        phat.print(" ")?;
-        assert_eq!(phat.buffer[0], 0b0000_0000);
-        
-        phat.print(' ')?;
-        assert_eq!(phat.buffer[0], 0b0000_0000);
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        start.checked_sub(u8::try_from(count).ok()?)
+    }
+}
 
-        phat.print(Char::from('*'))?;
-        assert_eq!(phat.buffer[..2], [0b1100_0000, 0b0011_1111]);
+/// Set an fourletter-phat driver
+pub type PHat<I2C> = HT16K33<I2C>;
+/// Bitmask character type
+pub type Char = [u8; CHAR_SIZE];
 
-        Ok(())
+#[ext(pub)]
+impl<I2C, E> PHat<I2C>
+where
+    I2C: Write<Error = E> + WriteRead<Error = E>
+{
+    /// Set's the dot led for one digit. 
+    /// Fourletter phat libary called this decimal, 
+    /// but to avoid confusion it's now a dot.
+    /// 
+    /// Example:
+    /// 
+    /// ```
+    /// # use quadigit_phat::*;
+    /// # use embedded_hal_mock::i2c::{Mock as I2c, Transaction};
+    /// # let expectations = [
+    /// # Transaction::write(0, vec![0, 0, 0, 0, 0b00100_0000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    /// # ];
+    /// # let mut phat = PHat::new(I2c::new(&expectations), 0u8);
+    /// phat.update_period(Digit::P1, true);
+    /// phat.write_buffer().unwrap();
+    /// ```
+    /// 
+    /// For the curious the dot mask is: 0000_0000_0100_0000 (for each digit)
+    fn set_dot(&mut self, digit: Digit, dot: bool) {
+        let addr = digit.to_addr()[1];
+        let decimal_mask = 0b0100_0000;
+
+        match dot {
+            true =>  self.buffer[addr] |= decimal_mask,
+            false => self.buffer[addr] &= !decimal_mask,
+        }
+    }
+
+    /// Set's 4 characters into buffer.
+    /// 
+    /// Example:
+    ///
+    /// ```
+    /// # use quadigit_phat::*;
+    /// # use embedded_hal_mock::i2c::{Mock as I2c, Transaction};
+    /// # let expectations = [
+    /// # Transaction::write(0, vec![0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    /// # ];
+    /// # let mut phat = PHat::new(I2c::new(&expectations), 0u8);
+    /// phat.set_text("8888".chars());
+    /// phat.write_buffer().unwrap();
+    /// ```
+    /// 
+    /// This will probably work with many projects but
+    /// if you need more fine control take a look at the source code.
+    fn set_text(&mut self, chars: Chars) {
+        let mapper = |c| ASCII.get(&c)
+            .unwrap_or_else(|| ASCII.get(&'?').unwrap());
+
+        (Digit::Z0..=Digit::P3) // Z0 stands for zero, P3 for positive 3
+            .flatten()          // Flattens into u8 buffer addresses
+            .zip(chars.map(mapper).flatten())
+            .for_each(|(d, &c)| self.buffer[d] = c);
     }
 }
