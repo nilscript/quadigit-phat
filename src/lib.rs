@@ -8,9 +8,7 @@ pub mod font;
 
 use crate::font::ASCII;
 use bounded_integer::bounded_integer;
-use core::convert::TryFrom;
 use core::str::Chars;
-use core::{array, iter::Step};
 use embedded_hal::blocking::i2c::{Write, WriteRead};
 use extend::ext;
 pub use ht16k33_diet::*;
@@ -34,25 +32,10 @@ impl Digit {
 
 impl IntoIterator for Digit {
     type Item = usize;
-    type IntoIter = array::IntoIter<Self::Item, CHAR_SIZE>;
+    type IntoIter = core::array::IntoIter<Self::Item, CHAR_SIZE>;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter::new(self.to_addr())
-    }
-}
-
-/// Range notation wont work without step implementation
-unsafe impl Step for Digit {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Some((*end - *start) as usize)
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        start.checked_add(u8::try_from(count).ok()?)
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        start.checked_sub(u8::try_from(count).ok()?)
     }
 }
 
@@ -79,7 +62,7 @@ where
     /// # Transaction::write(0, vec![0, 0, 0, 0, 0b00100_0000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     /// # ];
     /// # let mut phat = PHat::new(I2c::new(&expectations), 0u8);
-    /// phat.update_period(Digit::P1, true);
+    /// phat.set_dot(Digit::P1, true);
     /// phat.write_buffer().unwrap();
     /// ```
     /// 
@@ -115,7 +98,7 @@ where
         let mapper = |c| ASCII.get(&c)
             .unwrap_or_else(|| ASCII.get(&'?').unwrap());
 
-        (Digit::Z0..=Digit::P3) // Z0 stands for zero, P3 for positive 3
+        (Digit::Z..=Digit::P3) // Z stands for zero, P3 for positive 3
             .flatten()          // Flattens into u8 buffer addresses
             .zip(chars.map(mapper).flatten())
             .for_each(|(d, &c)| self.buffer[d] = c);

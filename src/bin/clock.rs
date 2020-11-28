@@ -72,7 +72,7 @@ fn main() -> Result<(), Error> {
         phat.write_buffer()?;
 
         phat.write_display(Display::Off)?;
-        phat.set_oscillator(Oscillator::OFF)
+        phat.write_oscillator(Oscillator::Off)?;
     }
 
     Ok(())

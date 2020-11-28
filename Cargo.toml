@@ -26,7 +26,7 @@ embedded-hal    = "0.2"
 embedded-hal-mock = "0.7.2"
 ht16k33-diet    = { git = "https://github.com/sesar54/ht16k33-diet" }
 enum-iterator   = "0.6.0"
-bounded-integer = "0.2.3"
+bounded-integer = { version = "0.3.0", features = ["step_trait"] }
 
 # Bin clock dependencies
 max7219 = "0.3.0"                                   # Driver
