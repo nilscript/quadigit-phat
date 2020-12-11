@@ -1,6 +1,6 @@
 use chrono::Local;
 use docopt::Docopt;
-use quadigit_phat::*;
+use quadigit_phat::{*, states::*};
 use rppal::i2c::{Error, I2c};
 use serde::Deserialize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -35,9 +35,9 @@ fn main() -> Result<(), Error> {
         .unwrap_or_else(|e| e.exit());
 
     eprintln!("Setting up display...");
-    let mut phat = PHat::new(I2c::new()?, 112u8);
-    phat.init()?;
-    phat.write_dimming(Dimming::new(args.flag_dimming).unwrap())?;
+    let mut phat = HT16K33::new(I2c::new()?, 112u8);
+    phat.power_on()?;
+    phat.write_dimming(Pulse::new(args.flag_dimming).unwrap())?;
 
     eprintln!("Setting up termination handler...");
     let running = Arc::new(AtomicBool::new(true));
@@ -60,7 +60,7 @@ fn main() -> Result<(), Error> {
             phat.set_dot(Digit::P1, time.timestamp() & 1 == 0);
         }
 
-        phat.write_buffer()?;
+        phat.write_dbuf()?;
 
         thread::sleep(Duration::from_millis(args.flag_period));
     }
@@ -68,12 +68,8 @@ fn main() -> Result<(), Error> {
 
     if !args.flag_no_teardown {
         eprintln!("Tearing down display...");
-        phat.clear_buffer();
-        phat.write_buffer()?;
-
-        phat.write_display(Display::Off)?;
-        phat.write_oscillator(Oscillator::Off)?;
+        phat.shutdown()
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }

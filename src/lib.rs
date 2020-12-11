@@ -11,8 +11,7 @@ use crate::font::ASCII;
 use bounded_integer::bounded_integer;
 use core::str::Chars;
 use core::ops::RangeInclusive;
-use extend::ext;
-pub use ht16k33_diet::*;
+pub use ht16k33_lite::*;
 
 pub const CHAR_TOTAL: usize = 4;
 pub const CHAR_SIZE:  usize = 2;
@@ -62,17 +61,22 @@ impl IntoIterator for Digit {
     }
 }
 
-/// Set an fourletter-phat driver
-pub type PHat<I2C> = HT16K33<I2C>;
+pub trait PHat {
+    fn set_char(&mut self, digit: Digit, c: Char);
+
+    fn set_dot(&mut self, digit: Digit, doot: bool);
+
+    fn set_text(&mut self, chars: Chars);
+}
+
 /// Bitmask character type
 pub type Char = [u8; CHAR_SIZE];
 
-#[ext(pub)]
-impl<I2C> PHat<I2C> {
+impl<I2C> PHat for HT16K33<I2C> {
 
     fn set_char(&mut self, digit: Digit, c: Char) {
-        self.buffer[digit.start()] = c[0];
-        self.buffer[digit.end()  ] = c[1];
+        self.dbuf[digit.start()] = c[0];
+        self.dbuf[digit.end()  ] = c[1];
     }
 
     /// Set's the dot led for one digit. 
@@ -97,8 +101,8 @@ impl<I2C> PHat<I2C> {
         let addr = digit.end();
 
         match dot {
-            true =>  self.buffer[addr] |=  DOT_MASK,
-            false => self.buffer[addr] &= !DOT_MASK,
+            true =>  self.dbuf[addr] |=  DOT_MASK,
+            false => self.dbuf[addr] &= !DOT_MASK,
         }
     }
 
@@ -123,7 +127,7 @@ impl<I2C> PHat<I2C> {
         let mapper: fn(&char) -> Char = 
             |c| *ASCII.get(c).unwrap_or_else(|| ASCII.get(&'?').unwrap());
 
-        compile_dot(chars, mapper, &mut self.buffer[Digit::full_range()]);
+        compile_dot(chars, mapper, &mut self.dbuf[Digit::full_range()]);
     }
 }
 

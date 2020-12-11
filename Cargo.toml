@@ -19,9 +19,8 @@ name = "clock"
 path = "src/bin/clock.rs"
 
 [dependencies]
-extend          = "0.3.0"
 phf             = { version = "0.8.0", features = ["macros"] }
-ht16k33-diet    = { git = "https://github.com/sesar54/ht16k33-diet" }
+ht16k33-lite    = { path = "../ht16k33-lite" } #{ git = "https://github.com/sesar54/ht16k33-lite", branch = "ByTheBook" }
 bounded-integer = { version = "0.3.0", features = ["step_trait"] }
 
 # Bin clock dependencies
