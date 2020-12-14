@@ -1,13 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(array_value_iter)] // Used in Digit::IntoIter
 #![allow(clippy::manual_range_contains)]
-#![feature(step_trait)]
-#![feature(step_trait_ext)]
+#![feature(step_trait, step_trait_ext)]
 #![feature(peekable_next_if)]
 
-pub mod font;
+pub mod fonts;
 
-use crate::font::ASCII;
+use crate::fonts::ASCII;
 use bounded_integer::bounded_integer;
 use core::str::Chars;
 use core::ops::RangeInclusive;
