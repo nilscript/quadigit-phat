@@ -16,7 +16,7 @@ Options:
   --dimming=<kn>    Set display dimmer [default: 15].
   --format=<fmt>    Set the clock formatter [default: %H%M].
   --no-dot          Disable blinking dot.
-  --no-teardown     Don't clean display on SIGHUP.
+  --no-shutdown     Don't clean display on SIGHUP.
   --period=<ms>     Set the period of the clock [default: 1000].
 ";
 
@@ -25,7 +25,7 @@ struct Args {
     flag_dimming: u8,
     flag_format: String,
     flag_no_dot: bool,
-    flag_no_teardown: bool,
+    flag_no_shutdown: bool,
     flag_period: u64,
 }
 
@@ -45,15 +45,14 @@ fn main() -> Result<(), Error> {
     ctrlc::set_handler(move || {
         eprintln!("Stopping clock...");
         r.store(false, Ordering::SeqCst);
-    })
-    .expect("Error setting termination handler");
+    }).expect("Error setting termination handler");
 
     eprintln!("Started clock");
     while running.load(Ordering::SeqCst) {
         let time = Local::now();
         let ascii_now = time.format(&args.flag_format).to_string();
 
-        phat.set_text(ascii_now.chars());
+        phat.set_text(fonts::ascii, ascii_now.chars());
         
         // Every second toggle the middle decimal
         if !args.flag_no_dot {
@@ -63,13 +62,12 @@ fn main() -> Result<(), Error> {
         phat.write_dbuf()?;
 
         thread::sleep(Duration::from_millis(args.flag_period));
-    }
-    eprintln!("Stopped clock");
+    } eprintln!("Stopped clock");
 
-    if !args.flag_no_teardown {
+    if args.flag_no_shutdown {
+        Ok(())
+    } else {
         eprintln!("Tearing down display...");
         phat.shutdown()
-    } else {
-        Ok(())
     }
 }

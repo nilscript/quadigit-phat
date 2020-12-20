@@ -23,6 +23,16 @@
 use crate::Char;
 use phf::phf_map;
 
+pub const DOT_MASK:   u8    = 0b0100_0000;
+
+pub fn try_ascii(c: &char) -> Option<Char> {
+    ASCII.get(c).copied()
+}
+
+pub fn ascii(c: &char) -> Char {
+    try_ascii(c).unwrap_or([0b1000_0011, 0b0001_0000]) // '?'
+}
+
 /// TODO Insert GOOD DOCUMENTATION
 pub static ASCII: phf::Map<char, Char> = phf_map! {
     ' ' =>  [0b0000_0000, 0b0000_0000],
