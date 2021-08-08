@@ -1,8 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_range_contains)]
-#![feature(step_trait, step_trait_ext)]
+#![feature(step_trait)]
 #![feature(generators, generator_trait)]
-#![feature(peekable_next_if)]
 
 pub mod fonts;
 

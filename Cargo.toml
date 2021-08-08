@@ -19,12 +19,12 @@ name = "clock"
 path = "src/bin/clock.rs"
 
 [dependencies]
-phf             = { version = "0.8.0", features = ["macros"] }
+phf             = { version = "0.9.1", features = ["macros"] }
 ht16k33-lite    = { git = "https://github.com/sesar54/ht16k33-lite" }
-bounded-integer = { version = "0.3.0", features = ["step_trait"] }
+bounded-integer = { version = "0.5.0", features = ["step_trait"] }
 
 # Bin clock dependencies
-rppal = { version = "0.11.3", features = ["hal"] }  # Driver
+rppal = { version = "0.12.0", features = ["hal"] }  # Driver
 chrono = "0.4.13"                                   # Replacement for std::time
 docopt = "1"                                        # Arguments
 serde = { version = "1", features = ["derive"] }
