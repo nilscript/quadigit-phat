@@ -34,18 +34,20 @@ fn main() -> Result<(), Error> {
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
 
-    eprintln!("Setting up display...");
+    eprint!("Setting up display...");
     let mut phat = HT16K33::new(I2c::new()?, 112u8);
     phat.power_on()?;
     phat.write_dimming(Pulse::new(args.flag_dimming).unwrap())?;
+    eprintln!("done");
 
-    eprintln!("Setting up termination handler...");
+    eprint!("Setting up termination handler...");
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     ctrlc::set_handler(move || {
-        eprintln!("Stopping clock...");
+        eprint!("Stopping clock...");
         r.store(false, Ordering::SeqCst);
     }).expect("Error setting termination handler");
+    eprintln!("done");
 
     eprintln!("Started clock");
     while running.load(Ordering::SeqCst) {
@@ -67,7 +69,7 @@ fn main() -> Result<(), Error> {
     if args.flag_no_shutdown {
         Ok(())
     } else {
-        eprintln!("Tearing down display...");
+        eprintln!("Tearing down display");
         phat.shutdown()
     }
 }
