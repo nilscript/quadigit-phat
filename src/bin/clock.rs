@@ -1,6 +1,6 @@
 use chrono::Local;
 use docopt::Docopt;
-use quadigit_phat::{*, states::*};
+use quadigit_phat::{*, state::*};
 use rppal::i2c::{Error, I2c};
 use serde::Deserialize;
 use std::sync::atomic::{AtomicBool, Ordering};

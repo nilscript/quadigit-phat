@@ -5,41 +5,54 @@
 
 pub mod fonts;
 
-use bounded_integer::bounded_integer;
 use core::str::Chars;
-use core::ops::RangeInclusive;
-pub use ht16k33_lite::*;
+pub use ht16k33_lite::prelude::*;
+use strum::IntoEnumIterator;
+use strum::EnumIter;
+use std::ops::RangeInclusive;
+use std::convert::TryFrom;
 
 /// Number of characters that can be displayed at once.
 pub const CHAR_TOTAL: usize = 4;
-/// Number of bytes needed to repressent a character.
+/// Number of bytes needed to represent a character.
 pub const CHAR_SIZE:  usize = 2;
 
-bounded_integer! {
-/// Each digit addresses 2 buffer bytes who collectivly form a set of leds, 
+/// Each digit addresses 2 buffer bytes who collectively form a set of LEDs, 
 /// used for displaying a single character.
-#[repr(u8)]
-pub enum Digit { 0..4 }
+#[derive(Copy, Clone, Debug, EnumIter, PartialEq, Eq, Hash)]
+pub enum CharDataAddressPointer { 
+    P0, P1, P2, P3 
 }
 
-impl Digit {
-    /// Creates an address that are pointing to the first memory cell of a digit.
-    pub fn start(&self) -> usize {*self as usize * 2}
+impl CharDataAddressPointer {
+    /// Creates the first pointer to the first memory cell of a specific digit.
+    pub fn first(&self) -> usize {*self as usize * 2}
 
-    /// Creates an address that are pointing to the last memory cell of a digit.
-    pub fn end(&self) -> usize {*self as usize * 2 + 1}
+    /// Creates the second pointer to the last memory cell of a specific digit.
+    pub fn second(&self) -> usize {*self as usize * 2 + 1}
 
     /// Creates 2 addresses that are pointing to both cells of a digit.
-    pub fn to_address(&self) -> [usize; CHAR_SIZE] {[self.start(), self.end()]}
-
-    /// Creates an inclusive address range from self.start() to other.end()
-    pub fn to_usize_range(&self, other: &Self) -> RangeInclusive<usize> {
-        self.start()..=other.end()
+    pub fn to_address(&self) -> [usize; CHAR_SIZE] {
+        [self.first(), self.second()]
     }
 
     /// Creates a usize range of all valid character addresses.
-    pub fn full_usize_range() -> RangeInclusive<usize> {
-        Digit::MIN.to_usize_range(&Digit::MAX)
+    pub fn to_full_address_range() -> RangeInclusive<usize> {
+        Self::P0 as usize..=Self::P3 as usize
+    }
+}
+
+impl TryFrom<usize> for CharDataAddressPointer {
+    type Error =  &'static str;
+
+    fn try_from(u: usize) -> Result<Self, Self::Error> {
+        match u {
+           u if u == Self::P0 as usize => Ok(Self::P0),
+           u if u == Self::P1 as usize => Ok(Self::P1),
+           u if u == Self::P2 as usize => Ok(Self::P2),
+           u if u == Self::P3 as usize => Ok(Self::P3),
+           u => Err(format!("CharAddress only accepts values ranging from 0 to 3! Value was: {}.", u)),
+        }
     }
 }
 
@@ -60,7 +73,7 @@ pub trait PHat {
     /// 
     /// phat.write_dbuf().unwrap();
     /// ```
-    fn set_char(&mut self, digit: Digit, c: Char);
+    fn set_char(&mut self, caddr: CharDataAddressPointer, c: Char);
 
     /// Iterates over `chars` mapping them with `mapper` 
     /// and set's the internal buffer.
@@ -70,7 +83,7 @@ pub trait PHat {
     fn set_chars(&mut self, mapper: fn(&char) -> Char, chars: Chars);
 
     /// Set's the dot led for one digit. 
-    /// Fourletter phat libary called this decimal, 
+    /// Fourletter phat library called this decimal, 
     /// but to avoid confusion it's now a dot.
     /// 
     /// Example:
@@ -87,7 +100,7 @@ pub trait PHat {
     /// ```
     /// 
     /// For the curious the dot mask is: 0000_0000_0100_0000 (for each digit)
-    fn set_dot(&mut self, digit: Digit, doot: bool);
+    fn set_dot(&mut self, caddr: CharDataAddressPointer, dot: bool);
 
     /// Iterates over `chars` mapping them with `mapper` 
     /// and set's the internal buffer.
@@ -147,23 +160,22 @@ pub trait PHat {
 pub type Char = [u8; CHAR_SIZE];
 
 impl<I2C> PHat for HT16K33<I2C> {
-    fn set_char(&mut self, digit: Digit, c: Char) {
-        self.dbuf[digit.start()] = c[0];
-        self.dbuf[digit.end()  ] = c[1];
+    fn set_char(&mut self, caddr: CharDataAddressPointer, c: Char) {
+        self.dbuf[caddr.first() ] = c[0];
+        self.dbuf[caddr.second()] = c[1];
     }
     
     fn set_chars(&mut self, mapper: fn(&char) -> Char, chars: Chars) {
-        (Digit::MIN..=Digit::MAX)
+        CharDataAddressPointer::iter()
         .zip(chars.map(|c| mapper(&c)))
         .for_each(|(d, c)| {
-            self.dbuf[d.start()] = c[0];
-            self.dbuf[d.end()  ] = c[1];
+            self.dbuf[d.first() ] = c[0];
+            self.dbuf[d.second()] = c[1];
         });
     }
 
-    fn set_dot(&mut self, digit: Digit, dot: bool) {
-        let addr = digit.end();
-
+    fn set_dot(&mut self, cdap: CharDataAddressPointer, dot: bool) {
+        let addr = cdap.second();
         match dot {
             true =>  self.dbuf[addr] |=  fonts::DOT_MASK,
             false => self.dbuf[addr] &= !fonts::DOT_MASK,
@@ -171,7 +183,7 @@ impl<I2C> PHat for HT16K33<I2C> {
     }
 
     fn set_text(&mut self, mapper: fn(&char) -> Char, chars: Chars) {
-        compile_dot(&mut self.dbuf[Digit::full_usize_range()], mapper, chars);
+        compile_dot(&mut self.dbuf[CharDataAddressPointer::to_full_address_range()], mapper, chars);
     }
 }
 
@@ -183,20 +195,19 @@ impl<I2C> PHat for HT16K33<I2C> {
 pub fn compile_dot(buf: &mut [u8], mapper: fn(&char) -> Char, chars: Chars) {
     // chars and digit are not synced with iterators by design.
     let mut chars = chars.peekable();
-    let mut index = (Digit::MIN..=Digit::new_saturating(buf.len() as u8 / 2))
-                    .peekable();
+    let mut index = CharDataAddressPointer::iter().peekable();
 
     while let Some((c, i)) = chars.next().zip(index.peek()) {
         // Ordering of checks matters.
-        // Edge cases are coverd like general cases.
-        if c == '.' && chars.next_if_eq(&'.').is_none() && *i != Digit::Z {
-            buf[i.start() -1] |= fonts::DOT_MASK;
+        // Edge cases are covered like general cases.
+        if c == '.' && chars.next_if_eq(&'.').is_none() && *i != CharDataAddressPointer::P0 {
+            buf[i.first() -1] |= fonts::DOT_MASK;
 
         // Character is not an escaped dot or a dot.
         } else {
             let c = mapper(&c);
-            buf[i.start()] = c[0];
-            buf[i.end()  ] = c[1];
+            buf[i.first() ] = c[0];
+            buf[i.second()] = c[1];
             index.next();
         }
     }
