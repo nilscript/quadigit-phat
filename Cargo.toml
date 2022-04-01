@@ -20,7 +20,7 @@ path = "src/bin/clock.rs"
 
 [dependencies]
 embedded-hal = "0.2"
-ht16k33-lite    = { git = "https://github.com/nilscript/ht16k33-lite", rev = "85a0645" }
+ht16k33-lite    = { git = "https://github.com/nilscript/ht16k33-lite", rev = "b219dd5d" }
 itertools       = "0.10.3"
 phf             = { version = "0.10.0", features = ["macros"] }
 
