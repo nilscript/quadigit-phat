@@ -16,34 +16,6 @@ pub enum CharDataAddressPointer {
     P0, P1, P2, P3,
 }
 
-pub fn flush<I2C, E>(ht16k33: &mut HT16K33<I2C>, dbuf: &[u16; 4]) -> Result<E>
-where
-    I2C: Read<Error = E> + Write<Error = E>,
-{
-    unsafe {
-        ht16k33.write_dram(
-            &DisplayDataAddressPointer::P0,
-            &mem::transmute::<[u16; 4], [u8; 8]>(*dbuf),
-        )
-    }
-}
-
-/// Set's one character for one digit.
-///
-/// If
-/// ```
-/// # use quadigit_phat::*;
-/// # use embedded_hal_mock::i2c::{Mock as I2c, Transaction};
-/// # let expectations = [
-/// # Transaction::write(0, vec![0, 0x00, 0x00, 0x3F, 0x00, 0x70, 0x24, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0])
-/// # ];
-/// # let mut phat = HT16K33::new(I2c::new(&expectations), 0u8);
-/// (Digit::P1..=Digit::P2)
-/// .zip("OK".chars().map(|c| fonts::ascii(&c)))
-/// .for_each(|(d, c)| phat.set_char(d, c));
-///
-/// phat.write_dbuf().unwrap();
-/// ```
 pub fn write_char(dbuf: &mut [u16; 4], cdap: CharDataAddressPointer, c: u16) {
     dbuf[cdap as usize] = c;
 }
@@ -57,6 +29,18 @@ pub fn write_dot(dbuf: &mut [u16; 4], cdap: CharDataAddressPointer, dot: bool) {
 
 pub fn write_str<I: Iterator<Item = u16> + Sized>(dbuf: &mut [u16; 4], iter: I) {
     iter.enumerate().for_each(|(i, c)| dbuf[i] = c);
+}
+
+pub fn flush<I2C, E>(ht16k33: &mut HT16K33<I2C>, dbuf: &[u16; 4]) -> Result<E>
+where
+    I2C: Read<Error = E> + Write<Error = E>,
+{
+    unsafe {
+        ht16k33.write_dram(
+            &DisplayDataAddressPointer::P0,
+            &mem::transmute::<[u16; 4], [u8; 8]>(*dbuf),
+        )
+    }
 }
 
 /*
@@ -186,12 +170,7 @@ where
     }
 
     pub fn flush(&mut self) -> Result<E> {
-        unsafe {
-            self.ht16k33.write_dram(
-                &DisplayDataAddressPointer::P0,
-                &mem::transmute::<[u16; 4], [u8; 8]>(self.dbuf),
-            )
-        }
+        flush(&mut self.ht16k33, &self.dbuf)
     }
 }
 
