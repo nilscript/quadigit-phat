@@ -19,9 +19,10 @@ name = "clock"
 path = "src/bin/clock.rs"
 
 [dependencies]
+embedded-hal = "0.2"
+ht16k33-lite    = { path = "../ht16k33-lite", features = [] } # { git = "https://github.com/sesar54/ht16k33-lite", rev = "1e5cb841" }
+itertools       = "0.10.3"
 phf             = { version = "0.10.0", features = ["macros"] }
-ht16k33-lite    = { path = "../ht16k33-lite" } # { git = "https://github.com/sesar54/ht16k33-lite", rev = "b0d34642" }
-strum           = { version = "0.22.0", features = ["derive"] }
 
 # Binary clock dependencies
 rppal = { version = "0.13.1", features = ["hal"] }  # Driver
@@ -29,6 +30,7 @@ chrono = "0.4.13"                                   # Replacement for std::time
 docopt = "1"                                        # Arguments
 serde = { version = "1", features = ["derive"] }
 ctrlc = "3.1.7"
+schedule_recv = "0.1.0"
 
 [dev-dependencies]
 embedded-hal-mock  = "0.8.0"
