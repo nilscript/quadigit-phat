@@ -35,9 +35,11 @@ fn main() {
 
     eprint!("Setting up display...");
     let mut phat: PHat<I2c, Error>;
-    phat = PHat::new(HT16K33::new(I2c::new().unwrap(), 112u8)).unwrap();
+    phat = PHat::new(I2c::new().unwrap(), 112u8, fonts::ascii).unwrap();
+    phat.power_on().unwrap();
+
     let dimming = DimmingSet::from_u8(args.flag_dimming - 1).unwrap();
-    phat.ht16k33_mut().write_dimming_set(dimming).unwrap();
+    phat.write_dimming_set(dimming).unwrap();
     eprintln!("done");
 
     eprint!("Setting up termination handler...");
@@ -50,18 +52,15 @@ fn main() {
     .expect("Error setting termination handler");
     eprintln!("done");
 
-    let mut dot: bool = false;
     let ticktock = periodic(Duration::from_secs(1));
 
     eprintln!("Started clock");
     while running.load(Ordering::SeqCst) {
         let ascii_now = Local::now().format(&args.flag_format).to_string();
-        phat.write_str(ascii_now.as_bytes().iter().map(fonts::ascii));
+        phat.write_str(&ascii_now);
         if !args.flag_no_dot {
-            phat.write_dot(CharDataAddressPointer::P1, dot);
+            phat.toggle_dot(CharDataAddressPointer::P1);
         }
-        // Every second toggle the middle decimal
-        dot = !dot;
 
         phat.flush().unwrap();
         ticktock.recv().unwrap();
