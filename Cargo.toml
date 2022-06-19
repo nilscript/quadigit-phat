@@ -1,6 +1,6 @@
 [package]
 authors = ["Nils Eriksson <nils.edvin.eriksson@gmail.com>"]
-edition = "2018"
+edition = "2021"
 name = "quadigit_phat"
 license-file = "LICENSE"
 version = "0.0.0"
@@ -19,6 +19,7 @@ name = "clock"
 
 [dependencies]
 embedded-hal = "0.2"
+dyn-iter = "0.2.0"
 ht16k33-lite    = { git = "https://github.com/nilscript/ht16k33-lite", rev = "b219dd5d" }
 itertools       = "0.10.3"
 phf             = { version = "0.10.0", features = ["macros"] }

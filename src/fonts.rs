@@ -20,10 +20,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+use dyn_iter::DynIter;
 use phf::phf_map;
 
-pub const DOT_MASK: u16 =           0b0100_0000_0000_0000;
-pub const QUESTIONMARK_MASK: u16 =  0b0001_0000_1000_0011;
+pub mod mask {
+    pub const DOT: u16 = 0b0100_0000_0000_0000;
+    pub const QUESTIONMARK: u16 = 0b0001_0000_1000_0011;
+}
 
 /// TODO Insert GOOD DOCUMENTATION
 pub static ASCII: phf::Map<u8, u16> = phf_map! {
@@ -41,7 +44,7 @@ pub static ASCII: phf::Map<u8, u16> = phf_map! {
     b'+' => 0b0001_0010_1100_0000,
     b',' => 0b0000_1000_0000_0000,
     b'-' => 0b0000_0000_1100_0000,
-    b'.' => DOT_MASK,
+    b'.' => mask::DOT,
     b'/' => 0b0000_1100_0000_0000,
     b'0' => 0b0000_1100_0011_1111,
     b'1' => 0b0000_0000_0000_0110,
@@ -124,112 +127,128 @@ pub static ASCII: phf::Map<u8, u16> = phf_map! {
     b'~' => 0b0000_0101_0010_0000,
 };
 
-pub fn try_ascii(c: &u8) -> Option<u16> {
-    ASCII.get(c).copied()
+pub fn try_ascii(c: u8) -> Option<u16> {
+    ASCII.get(&c).copied()
 }
 
-pub fn ascii(c: &u8) -> u16 {
-    try_ascii(c).unwrap_or(QUESTIONMARK_MASK)
+pub fn ascii(c: u8) -> u16 {
+    try_ascii(c).unwrap_or(mask::QUESTIONMARK)
 }
 
-pub struct DotInterpreter<'a> {
+pub fn ascii_iter(i: DynIter<u8>) -> DynIter<u16> {
+    DynIter::new(i.map(ascii))
+}
+
+pub struct DotInterpreter<I>
+where
+    I: Iterator<Item = u16>,
+{
     buf: [u16; 3],
     buf_len: usize,
-    iter: &'a mut dyn Iterator<Item = u16>,
-    mask: u16,
+    iter: I,
 }
 
-impl<'a> DotInterpreter<'a> {
-    pub fn new(iter: &'a mut dyn Iterator<Item = u16>, mask: u16) -> DotInterpreter {
+impl<I> DotInterpreter<I>
+where
+    I: Iterator<Item = u16>,
+{
+    pub fn new(iter: I) -> DotInterpreter<I> {
         let mut dot = DotInterpreter {
             buf: [0; 3],
             buf_len: 0,
             iter,
-            mask
         };
 
         dot.refill(3);
         dot
     }
 
-    fn rotate(&mut self, n: usize) {        
+    fn buf(&self) -> &[u16] {
+        &self.buf[..self.buf_len]
+    }
+
+    fn rotate(&mut self, n: usize) {
         self.buf.rotate_left(n);
         self.buf_len -= n;
-    } 
+    }
 
     fn refill(&mut self, n: usize) {
-        for (i, c) in self.iter.take(n).enumerate() {
-            self.buf[3 - n + i] = c;
-            self.buf_len += 1; 
+        for i in 0..n {
+            self.iter.next().iter().for_each(|c| {
+                self.buf[3 - n + i] = *c;
+                self.buf_len += 1;
+            });
         }
     }
 
-    fn id(&mut self, a: u16) -> Option<u16> {
-        self.rotate(1);
-        self.refill(1);
+    fn consume(&mut self, n: usize) {
+        self.rotate(n);
+        self.refill(n);
+    }
+
+    fn identity(&mut self, a: u16) -> Option<u16> {
+        self.consume(1);
         Some(a)
     }
 
-    fn or(&mut self, a: u16, b: u16) -> Option<u16> {
-        self.rotate(2);
-        self.refill(2);
+    fn mask(&mut self, a: u16, b: u16) -> Option<u16> {
+        self.consume(2);
         Some(a | b)
     }
 
-    fn esc(&mut self, a: u16) -> Option<u16> {
-        self.rotate(2);
-        self.refill(2);
+    fn escaped(&mut self, a: u16) -> Option<u16> {
+        self.consume(2);
         Some(a)
     }
 }
 
-impl<'a> Iterator for DotInterpreter<'a> {
+impl<I> Iterator for DotInterpreter<I>
+where
+    I: Iterator<Item = u16> + Sized,
+{
     type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.buf_len {
-            3 => match self.buf[..] {
-                [a, b, _] if b != self.mask => self.id(a),
-                [a, b, c] if b == self.mask && c != self.mask => self.or(a, b),
-                [a, b, c] if b == self.mask && c == self.mask => self.esc(a),
-                _ => unreachable!()
-            }
-            2 => match self.buf[0..2] {
-                [a, b] if b == self.mask => self.or(a, b),
-                [a, _] => self.id(a),
-                _ => unreachable!()
-            }
-            1 => self.id(self.buf[0]),
-            _ => None,
+        match *self.buf() {
+            [a, b, c] if b == mask::DOT && c != mask::DOT => self.mask(a, b),
+            [a, b, c] if b == mask::DOT && c == mask::DOT => self.escaped(a),
+            [a, b, _] if b != mask::DOT => self.identity(a),
+            [a, b] if b != mask::DOT => self.identity(a),
+            [a, b] if b == mask::DOT => self.mask(a, b),
+            [a] => self.identity(a),
+            [..] => None, //
         }
     }
 }
 
+pub fn dot_iter(i: DynIter<u8>) -> DynIter<u16> {
+    DynIter::new(DotInterpreter::new(i.map(ascii)))
+}
 
-/*
-/// Iterates over characters and maps them to buffer.
-/// Periods or dots (.) are inlined to the previous character
-/// unless escaped by another dot.
-/// 
-/// For examples look at `PHat::set_text()` method
-pub fn compile_dot(buf: &mut [u8], mapper: fn(&u8) -> u16, chars: Chars) {
-    // chars and digit are not synced with iterators by design.
-    let mut chars = chars.peekable();
-    let mut index = CharDataAddressPointer::iter().peekable();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    while let Some((c, i)) = chars.next().zip(index.peek()) {
-        // Ordering of checks matters.
-        // Edge cases are covered like general cases.
-        if c == '.' && chars.next_if_eq(&'.').is_none() && *i != CharDataAddressPointer::P0 {
-            buf[i.first() -1] |= fonts::DOT_MASK;
+    #[test]
+    fn dot_interpreter() {
+        assert_eq!(
+            vec![0x0C3F, 0x4C3F, 0x0C3F, 0x0C3F],
+            dot_iter(DynIter::new("00.00".bytes())).collect::<Vec<u16>>()
+        );
 
-        // Character is not an escaped dot or a dot.
-        } else {
-            let c = mapper(&c);
-            buf[i.first() ] = c[0];
-            buf[i.second()] = c[1];
-            index.next();
-        }
+        assert_eq!(
+            vec![0x0C3F, 0x0C3F, mask::DOT, 0x0C3F],
+            dot_iter(DynIter::new("00..0".bytes())).collect::<Vec<u16>>()
+        );
+
+        assert_eq!(
+            vec![0x0C3F, 0x0C3F, mask::DOT, 0x0C3F],
+            dot_iter(DynIter::new("00...0".bytes())).collect::<Vec<u16>>()
+        );
+
+        assert_eq!(
+            vec![0x0C3F, 0x0C3F, mask::DOT, mask::DOT],
+            dot_iter(DynIter::new("00....".bytes())).collect::<Vec<u16>>()
+        );
     }
 }
-*/

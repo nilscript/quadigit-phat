@@ -39,7 +39,7 @@ fn main() {
     eprint!("Setting up display...");
     let mut phat: PHat<I2c, Error>;
     {
-        phat = PHat::new(I2c::new().unwrap(), 112u8, fonts::ascii).unwrap();
+        phat = PHat::new(I2c::new().unwrap(), 112u8, fonts::ascii_iter).unwrap();
         phat.power_on().unwrap();
 
         let dimming = DimmingSet::from_u8(args.flag_dimming - 1).unwrap();

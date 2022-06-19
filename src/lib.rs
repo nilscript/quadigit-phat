@@ -1,8 +1,10 @@
 pub mod fonts;
 
 use core::mem;
+use dyn_iter::DynIter;
 use embedded_hal::blocking::i2c::{Read, Write};
 pub use ht16k33_lite::prelude::*;
+use std::iter::once;
 
 /// Number of characters that can be displayed at once.
 pub const CHAR_TOTAL: usize = 4;
@@ -27,7 +29,7 @@ pub fn write_dot(dbuf: &mut [u16; 4], cdap: CharDataAddressPointer, dot: bool, d
     }
 }
 
-pub fn write_str<I: Iterator<Item = u16> + Sized>(dbuf: &mut [u16; 4], iter: I) {
+pub fn write_str(dbuf: &mut [u16; 4], iter: &mut dyn Iterator<Item = u16>) {
     iter.enumerate().for_each(|(i, c)| dbuf[i] = c)
 }
 
@@ -138,7 +140,7 @@ where
     I2C: Read<Error = E> + Write<Error = E>,
 {
     dbuf: [u16; CHAR_TOTAL], // Display buffer
-    font: fn(&u8) -> u16,
+    font: fn(DynIter<u8>) -> DynIter<u16>,
     ht16k33: HT16K33<I2C>,
 }
 
@@ -147,7 +149,7 @@ where
     I2C: Read<Error = E> + Write<Error = E>,
 {
     /// Creates a new instance.
-    pub fn new(i2c: I2C, addr: u8, font: fn(&u8) -> u16) -> std::result::Result<PHat<I2C, E>, E> {
+    pub fn new(i2c: I2C, addr: u8, font: fn(DynIter<u8>) -> DynIter<u16>) -> std::result::Result<PHat<I2C, E>, E> {
         let ht16k33 = HT16K33::new(i2c, addr);
         Ok(PHat {
             dbuf: [0; CHAR_TOTAL],
@@ -158,25 +160,25 @@ where
 
     /// Writes single character to display buffer 
     /// at Character Data Address pointer.
-    pub fn write_char(&mut self, cdap: CharDataAddressPointer, c: &u8) {
-        write_char(&mut self.dbuf, cdap, (self.font)(c))
+    pub fn write_char(&mut self, cdap: CharDataAddressPointer, c: u8) {
+        write_char(&mut self.dbuf, cdap, (self.font)(DynIter::new(once(c))).next().unwrap())
     }
 
     /// Writes dot to display buffer 
     /// using `self.font` to map character '.' into a bitmask.
     pub fn write_dot(&mut self, cdap: CharDataAddressPointer, dot: bool) {
-        write_dot(&mut self.dbuf, cdap, dot, (self.font)(&b'.'))
+        write_dot(&mut self.dbuf, cdap, dot, (self.font)(DynIter::new(once(b'.'))).next().unwrap())
     }
 
     /// Writes string reference to display buffer using `self.font` as map.
     pub fn write_str(&mut self, s: &str) {
-        write_str(&mut self.dbuf, s.as_bytes().iter().map(self.font))
+        write_str(&mut self.dbuf, &mut (self.font)(DynIter::new(s.bytes())))
     }
 
     /// Xors the bitmask of character '.' 
     /// at Character Data Address pointer to display buffer.
     pub fn toggle_dot(&mut self, cdap: CharDataAddressPointer) {
-        toggle_dot(&mut self.dbuf, cdap, (self.font)(&b'.'))
+        toggle_dot(&mut self.dbuf, cdap, (self.font)(DynIter::new(once(b'.'))).next().unwrap())
     }
 
     /// Returns internal display buffer as a reference.
