@@ -5,6 +5,7 @@ name = "quadigit_phat"
 license-file = "LICENSE"
 version = "0.0.0"
 description = "High level driver for the Four Letter pHAT digital display"
+readme="readme.md"
 
 [features]
 default = ["std"] # As of writing this, only Error implements std::error::Error
