@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::thread;
 
-const USAGE: &str = "
+const USAGE: &'static str = "
 Usage: clock [options]
 
 Options:
@@ -57,10 +57,10 @@ fn main() {
             let ascii_now = now.format(&args.flag_format).to_string();
             phat.write_str(&ascii_now);
             if !args.flag_no_dot && now.timestamp() & 1 == 1 {
-                phat.write_dot(CharDataAddressPointer::P1, true);
+                phat.write_dot(1, true);
             }
 
-            phat.flush().unwrap();
+            phat.flush();
             ticktock.recv().unwrap();
         }
         phat.shutdown().unwrap();
