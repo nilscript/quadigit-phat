@@ -13,23 +13,14 @@ std = []
 
 [lib]
 name = "quadigit_phat"
-path = "src/lib.rs"
-
-[[example]]
-name = "clock"
 
 [dependencies]
-embedded-hal = "0.2"
-dyn-iter = "0.2.0"
-ht16k33-lite    = { git = "https://github.com/nilscript/ht16k33-lite", rev = "b219dd5d" }
-itertools       = "0.10.3"
-phf             = { version = "0.10.0", features = ["macros"] }
+ambassador      = "0.3"
+dyn-iter        = "0.2"
+embedded-hal    = "0.2"
+ht16k33-lite    = { git = "ssh://script.show:56486/~/git/ht16k33-lite.git", rev = "67257e10" }
+itertools       = "0.10"
+phf             = { version = "0.11", features = ["macros"] }
 
 [dev-dependencies]
-chrono = "0.4.19"				# Replacement for std::time
-docopt = "1"					# Arguments
-graceful = "0.1.1"				# Shutdown signal handler
-embedded-hal-mock  = "0.8.0"
-rppal = { version = "0.13.1", features = ["hal"] }  # Driver
-schedule_recv = "0.1.0"
-serde = { version = "1", features = ["derive"] }
+assert_hex          = "0.2"
