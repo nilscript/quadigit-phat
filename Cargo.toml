@@ -1,7 +1,7 @@
 [package]
 authors = ["Nils Eriksson <nils.edvin.eriksson@gmail.com>"]
 edition = "2021"
-name = "quadigit_phat"
+name = "quadigit-phat"
 license-file = "LICENSE"
 version = "0.0.0"
 description = "High level driver for the Four Letter pHAT digital display"
@@ -18,7 +18,7 @@ name = "quadigit_phat"
 ambassador      = "0.3"
 dyn-iter        = "0.2"
 embedded-hal    = "0.2"
-ht16k33-lite    = { git = "ssh://script.show:56486/~/git/ht16k33-lite.git", rev = "67257e10" }
+ht16k33-lite    = { git = "ssh://nas/~/git/ht16k33-lite.git", rev = "67257e10" }
 itertools       = "0.10"
 phf             = { version = "0.11", features = ["macros"] }
 
